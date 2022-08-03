@@ -1,0 +1,43 @@
+body {
+  margin: 0;
+  margin-top: 5px;
+}
+
+hr {
+  margin-left: 30px;
+  width: 320px;
+}
+
+#title {
+  margin-left: 30px;
+  padding-top: 5px;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+#page {
+  background-color: #eee;
+  width: 380px;
+  margin: auto;
+}
+
+#selector {
+  width: 320px;
+  margin-left: 30px;
+  margin-right: 30px;
+  margin-top: 20px;
+}
+
+#selector select {
+  width: 100%;
+}
+
+#stockdata {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.8rem;
+  margin-left: 30px;
+  margin-top: 20px;
+}
+
+#stockdata p {
+  margin: 3px;
+}
