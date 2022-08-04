@@ -1,87 +1,70 @@
 import React, { useEffect, useState, useRef } from "react"
 import * as d3 from "d3"
 import "./App.css"
+import { availableStock, stockSymbol } from "./stockSymbolsAndNames.js"
 
 /* API key. */
 const API_KEY = process.env.REACT_APP_API_KEY
 
 /* Component to select stock to plot. */
-const StockSelector = ({ selectedStock, setSelectedStock }) => {
-
-  /* List of available stock. */
-  const availableStock = ["MMM", "AXP", "AAPL", "BA", "CAT",
-    "CVX", "CSCO", "KO", "DIS", "XOM", "GE", "GS", "HD", "IBM",
-    "INTC", "JNJ", "JPM", "MCD", "MRK", "MSFT", "NKE", "PFE", "PG",
-    "TRV", "UNH", "VZ", "V", "WMT"]
-  
-  /* Dictionary with full stock names. */
-  const stockSymbol = {
-    "MMM": "3M Company",
-    "AXP": "American Express Company",
-    "AAPL": "Apple",
-    "BA": "The Boeing Company",
-    "CAT": "Caterpillar",
-    "CVX": "Chevron",
-    "CSCO": "Cisco Systems",
-    "KO": "The Coca-Cola Company",
-    "DIS": "The Walt Disney Company",
-    "XOM": "Exxon Mobil",
-    "GE": "General Electric Company",
-    "GS": "The Goldman Sachs Group",
-    "HD": "The Home Depot",
-    "IBM": "International Business Machines",
-    "INTC": "Intel",
-    "JNJ": "Johnson & Johnson",
-    "JPM": "JPMorgan Chase & Co.",
-    "MCD": "McDonald's",
-    "MRK": "Merck & Co.",
-    "MSFT": "Microsoft",
-    "NKE": "Nike, Inc.",
-    "PFE": "Pfizer",
-    "PG": "The Procter & Gamble Company",
-    "TRV": "The Travelers Companies",
-    "UNH": "UnitedHealth Group",
-    "VZ": "Verizon Communications",
-    "V": "Visa Inc.",
-    "WMT": "Walmart",
-  }
+const StockSelector = ({ setSelectedStock }) => {
 
   /* Event handler for select. */
   const selectStock = (event) => {
     setSelectedStock(event.target.value)
   }
 
+  const showAlert = (event) => {
+    alert("Tämä ei vielä toimi.")
+  }
+
   return (
-    <div>
-      <div id="title">
-        <h1>Pörssitietoa</h1>
-      </div>
-      <hr></hr>
-      <div id="selector">
-        <select onChange={selectStock}>
-          <option key="default" value="default">Valitse osake</option>
-          {availableStock.map(stock =>
-            <option key={stock} value={stock}>{stockSymbol[stock]}</option>)}
-        </select>
-      </div>
-      <div id="stockdata">
-        <p>Osake: {stockSymbol[selectedStock]}</p>
-        <p>Viimeinen kurssi: XXX</p>
-        <p>Muutos: XXX</p>
+    <div id="selector">
+      <select onChange={selectStock}>
+        <option key="default" value="default">Valitse osake</option>
+        {availableStock.map(stock =>
+          <option key={stock} value={stock}>{stockSymbol[stock]}</option>)}
+      </select>
+      <div id="buttons">
+          Valitse ajanjakso:
+        <button onClick={showAlert}>Viikko</button>
+        <button onClick={showAlert}>Kuukausi</button>
+        <button onClick={showAlert}>Kaikki data</button>
       </div>
     </div>
   )
 }
 
-// /* Component to display info about selected stock. */
-// const StockInfo = (props) => {
+/* Component to display info about selected stock. */
+const StockInfo = ({ selectedStock, stockData }) => {
+  
+  /* Create variables. */
+  const [company, setCompany] = useState(null)
+  const [closingPrice, setClosingPrice] = useState(null)
+  const [changeInPrice, setChangeInPrice] = useState(null)
 
-//   return (
-//     <div>
-//       moikka
-//     </div>
-//   )
-// }
+  /* Use useEffect to get/calculate values to show. */
+  useEffect(() => {
+    if (stockData != null) {
+      setCompany(stockSymbol[selectedStock])
+  
+      const data = stockData.datatable.data
+      setClosingPrice(data[0][5])
+      
+      const firstPrice = data[data.length - 1][5]
+      const lastPrice = data[0][5]
+      setChangeInPrice((lastPrice / firstPrice * 100 - 100).toFixed(2))
+    }
+  }, [stockData])
+
+  return (
+    <div id="stockdata">
+      <p>Yhtiö: {company}</p>
+      <p>Päätöskurssi: {closingPrice}</p>
+      <p>Muutos ajanjaksolla: {changeInPrice}%</p>
+    </div>
+  )
+}
 
 /* The App itself. */
 function App() {
@@ -108,8 +91,9 @@ function App() {
       /* Get x- and y-values for plotting. */
       const tempData = stockData.datatable.data
 
-      const yValues = []
+      let yValues = []
       tempData.map(item => yValues.push(item[5]))
+      yValues = yValues.reverse()
 
       let xValues = []
       tempData.map(item => xValues.push(item[1]))
@@ -120,7 +104,7 @@ function App() {
       const yDomainHigh = Math.max(...yValues) + 1
 
       /* Define svg size. */
-      const width = 320
+      const width = 290
       const height = 200
 
       /* Define svg element. */
@@ -173,15 +157,6 @@ function App() {
         .call(yAxis)
         .attr("stroke-opacity", 0.1)
 
-      /* Append extra line on y-axis. */
-      svg.append("line")
-        .attr("x1", 0)
-        .attr("y1", 0)
-        .attr("x2", 0)
-        .attr("y2", 200)
-        .attr("stroke", "black")
-        .attr("stroke-width", "1px")
-
       /* Append plot. */
       svg.selectAll(".line")
         .data([yValues])
@@ -191,22 +166,40 @@ function App() {
         .attr("fill", "none")
         .attr("stroke", "pink")
         .attr("stroke-width", "1.5px")
+
+      /* Append extra line on y-axis. */
+      svg.append("line")
+        .attr("x1", 0)
+        .attr("y1", 0)
+        .attr("x2", 0)
+        .attr("y2", 200)
+        .attr("stroke", "black")
+        .attr("stroke-width", "1px")
     }
   }, [stockData])
   
   /* Return stuff. */
   return (
     <div id="page">
+      <div id="title">
+        <h1>Talousdata</h1>
+      </div>
+      <hr></hr>
       <div>
         <StockSelector
-          selectedStock={selectedStock}
           setSelectedStock={setSelectedStock} />
       </div>
-      {/* <div>
-        <StockInfo />
-      </div> */}
-      <div>
+      <div id="svgcontainer">
         <svg ref={svgRef}></svg>
+      </div>
+      <div>
+        <StockInfo 
+          selectedStock={selectedStock}
+          stockData={stockData} />
+      </div>
+      <hr></hr>
+      <div id="source">
+        <p>Lähde: Nasdaq.</p>
       </div>
     </div>
   )
