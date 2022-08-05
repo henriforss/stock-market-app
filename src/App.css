@@ -34,6 +34,8 @@ hr {
 #selector select {
   width: 100%;
   padding: 5px;
+  border: 0.25px solid black;
+  font-size: 0.9rem;
 }
 
 #buttons {
@@ -42,12 +44,16 @@ hr {
   justify-content: space-between;
   font-family: Arial, Helvetica, sans-serif;
   font-size: 0.9rem;
+  align-items: center;
 }
 
-#buttons button {
-  background-color: white;
+#buttons div {
   border: 1px solid black;
-  border-radius: 10px;
+  padding: 2px 4px;
+}
+
+.buttonsselected {
+  background-color: #eee;
 }
 
 #stockdata {

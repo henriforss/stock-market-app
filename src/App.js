@@ -7,36 +7,59 @@ import { availableStock, stockSymbol } from "./stockSymbolsAndNames.js"
 const API_KEY = process.env.REACT_APP_API_KEY
 
 /* Component to select stock to plot. */
-const StockSelector = ({ setSelectedStock }) => {
+const StockSelector = ({ setSelectedStock, setTimeFrame }) => {
+
+  /* Function to select all divs and remove class from each. */
+  const removeSelection = () => {
+    const allDivs = document.querySelectorAll("#div1, #div2, #div3")
+    allDivs.forEach((div) => {
+      div.classList.remove("buttonsselected")
+    })
+  }
+
+  /* Function to select default div. */
+  const selectDefault = () => {
+    const defaultDiv = document.getElementById("div3")
+    defaultDiv.classList.add("buttonsselected")
+  }
 
   /* Event handler for select. */
   const selectStock = (event) => {
     setSelectedStock(event.target.value)
+    setTimeFrame("0")
+    removeSelection()
+    selectDefault()
   }
 
-  const showAlert = (event) => {
-    alert("Tämä ei vielä toimi.")
+  /* Event handler for button. */
+  const handleClick = (value, event) => {
+    setTimeFrame(value)
+    removeSelection()
+
+    /* Add class to selected div. */
+    const selectedDiv = document.getElementById(event.target.id)
+    selectedDiv.classList.add("buttonsselected")
   }
 
   return (
     <div id="selector">
       <select onChange={selectStock}>
-        <option key="default" value="default">Valitse osake</option>
+        <option key="default" value="default">Valitse yhtiö</option>
         {availableStock.map(stock =>
           <option key={stock} value={stock}>{stockSymbol[stock]}</option>)}
       </select>
       <div id="buttons">
           Valitse ajanjakso:
-        <button onClick={showAlert}>Viikko</button>
-        <button onClick={showAlert}>Kuukausi</button>
-        <button onClick={showAlert}>Kaikki data</button>
+          <div id="div1" onClick={(event) => handleClick("-7", event)}>7 päivää</div>
+          <div id="div2" onClick={(event) => handleClick("-30", event)}>30 päivää</div>
+          <div id="div3" onClick={(event) => handleClick("0", event)}>Kaikki data</div>
       </div>
     </div>
   )
 }
 
 /* Component to display info about selected stock. */
-const StockInfo = ({ selectedStock, stockData }) => {
+const StockInfo = ({ selectedStock, stockData, timeFrame }) => {
   
   /* Create variables. */
   const [company, setCompany] = useState(null)
@@ -48,20 +71,27 @@ const StockInfo = ({ selectedStock, stockData }) => {
     if (stockData != null) {
       setCompany(stockSymbol[selectedStock])
   
-      const data = stockData.datatable.data
+      let data = stockData.datatable.data
       setClosingPrice(data[0][5])
-      
+
+      /* Apply timeFrame. Notice that the numbers need to be inverted(?). */
+      if (timeFrame === "0") {
+        data = data.slice(Math.abs(timeFrame))
+      } else {
+        data = data.slice(0, Math.abs(timeFrame))
+      }
+
       const firstPrice = data[data.length - 1][5]
       const lastPrice = data[0][5]
       setChangeInPrice((lastPrice / firstPrice * 100 - 100).toFixed(2))
     }
-  }, [stockData])
+  }, [stockData, timeFrame])
 
   return (
     <div id="stockdata">
-      <p>Yhtiö: {company}</p>
-      <p>Päätöskurssi: {closingPrice}</p>
-      <p>Muutos ajanjaksolla: {changeInPrice}%</p>
+      <p><b>Yhtiö: {company}</b></p>
+      <p>Päätöskurssi: {closingPrice} USD</p>
+      <p>Muutos ajanjaksolla: {changeInPrice} %</p>
     </div>
   )
 }
@@ -72,6 +102,7 @@ function App() {
   /* Define variables with useState(). */
   const [selectedStock, setSelectedStock] = useState("MMM")
   const [stockData, setStockData] = useState(null)
+  const [timeFrame, setTimeFrame] = useState("0")
   const svgRef = useRef()
 
   /* Get the data. */
@@ -82,6 +113,10 @@ function App() {
       setStockData(data)
     }
     getData()
+
+    /* Select default timeFrame button. */
+    const defaultDiv = document.getElementById("div3")
+    defaultDiv.classList.add("buttonsselected")
   }, [selectedStock])
 
   /* Plot the data after getting it. */
@@ -91,13 +126,17 @@ function App() {
       /* Get x- and y-values for plotting. */
       const tempData = stockData.datatable.data
 
-      let yValues = []
-      tempData.map(item => yValues.push(item[5]))
-      yValues = yValues.reverse()
+      let yAllValues = []
+      tempData.map(item => yAllValues.push(item[5]))
+      yAllValues = yAllValues.reverse()
 
-      let xValues = []
-      tempData.map(item => xValues.push(item[1]))
-      xValues = xValues.reverse()
+      let xAllValues = []
+      tempData.map(item => xAllValues.push(new Date(item[1])))
+      xAllValues = xAllValues.reverse()
+
+      /* Apply timeFrame on x- and y-values. */
+      let xValues = xAllValues.slice(timeFrame)
+      let yValues = yAllValues.slice(timeFrame)
 
       /* Get max and min y-values for setting yScale domain. */
       const yDomainLow = Math.min(...yValues) - 1
@@ -135,48 +174,72 @@ function App() {
       /* Define x-axis. */
       const xAxis = d3.axisBottom(xScale)
         .ticks(4)
-        .tickFormat(i => xValues[i])
+        .tickFormat(i => xValues[i].toLocaleDateString("en-GB"))
         .tickSize(4)
+        .tickPadding([10])
   
       /* Define y-axis. */
       const yAxis = d3.axisLeft(yScale)
         .ticks(5)
+        .tickSize(0)
+        .tickFormat(x => `$${x}`)
+        
+
+      /* Define y-axis grid. */
+      const yAxisGrid = d3.axisLeft(yScale)
         .tickSize(-width)
-      
+        .tickFormat("")
+        .ticks(5)
+               
       /* Remove previous ticks and plot. */
       svg.selectAll("*")
-        .remove()
+      .remove()
+      
+      /* Append grid. */
+      svg.append("g")
+      .call(yAxisGrid)
+      .attr("stroke-opacity", 0.1)
 
+      /* Append plot. */
+      svg.selectAll(".line")
+      .data([yValues])
+      .join("path")
+      .attr("d", d => generateScaledLine(d))
+      .attr("class", "line")
+      .attr("fill", "none")
+      .attr("stroke", "pink")
+      .attr("stroke-width", "1.5px")
+      
       /* Append x-axis ticks. */
       svg.append("g")
         .call(xAxis)
         .attr("transform", `translate(0, ${height})`)
-  
+      
       /* Append y-axis ticks. */
       svg.append("g")
         .call(yAxis)
-        .attr("stroke-opacity", 0.1)
 
-      /* Append plot. */
-      svg.selectAll(".line")
-        .data([yValues])
-        .join("path")
-        .attr("d", d => generateScaledLine(d))
-        .attr("class", "line")
-        .attr("fill", "none")
-        .attr("stroke", "pink")
-        .attr("stroke-width", "1.5px")
+      // /* Add function on click. */
+      // svg.on("click", (event) => {
 
-      /* Append extra line on y-axis. */
-      svg.append("line")
-        .attr("x1", 0)
-        .attr("y1", 0)
-        .attr("x2", 0)
-        .attr("y2", 200)
-        .attr("stroke", "black")
-        .attr("stroke-width", "1px")
+      //   const coords = d3.pointer(event)
+
+      //   console.log(coords)
+
+      //   svg.selectAll(".infoline")
+      //     .remove()
+
+      //   svg.append("line")
+      //     .attr("class", "infoline")
+      //     .attr("x1", coords[0])
+      //     .attr("y1", 0)
+      //     .attr("x2", coords[0])
+      //     .attr("y2", 200)
+      //     .style("stroke", "black")
+      //     .style("stroke-width", "1px")      
+      // })
     }
-  }, [stockData])
+  }, [stockData, timeFrame])
   
   /* Return stuff. */
   return (
@@ -187,7 +250,8 @@ function App() {
       <hr></hr>
       <div>
         <StockSelector
-          setSelectedStock={setSelectedStock} />
+          setSelectedStock={setSelectedStock}
+          setTimeFrame={setTimeFrame} />
       </div>
       <div id="svgcontainer">
         <svg ref={svgRef}></svg>
@@ -195,7 +259,8 @@ function App() {
       <div>
         <StockInfo 
           selectedStock={selectedStock}
-          stockData={stockData} />
+          stockData={stockData}
+          timeFrame={timeFrame} />
       </div>
       <hr></hr>
       <div id="source">
