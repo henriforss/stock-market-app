@@ -1,108 +1,19 @@
 import React, { useEffect, useState, useRef } from "react"
 import * as d3 from "d3"
 import "./App.css"
-import { availableStock, stockSymbol } from "./stockSymbolsAndNames.js"
+import StockSelector from "./components/StockSelector"
+import StockInfo from "./components/StockInfo"
 
 /* API key. */
 const API_KEY = process.env.REACT_APP_API_KEY
-
-/* Component to select stock to plot. */
-const StockSelector = ({ setSelectedStock, setTimeFrame }) => {
-
-  /* Function to select all divs and remove class from each. */
-  const removeSelection = () => {
-    const allDivs = document.querySelectorAll("#div1, #div2, #div3")
-    allDivs.forEach((div) => {
-      div.classList.remove("buttonsselected")
-    })
-  }
-
-  /* Function to select default div. */
-  const selectDefault = () => {
-    const defaultDiv = document.getElementById("div3")
-    defaultDiv.classList.add("buttonsselected")
-  }
-
-  /* Event handler for select. */
-  const selectStock = (event) => {
-    setSelectedStock(event.target.value)
-    setTimeFrame("0")
-    removeSelection()
-    selectDefault()
-  }
-
-  /* Event handler for button. */
-  const handleClick = (value, event) => {
-    setTimeFrame(value)
-    removeSelection()
-
-    /* Add class to selected div. */
-    const selectedDiv = document.getElementById(event.target.id)
-    selectedDiv.classList.add("buttonsselected")
-  }
-
-  return (
-    <div id="selector">
-      <select onChange={selectStock}>
-        <option key="default" value="default">Valitse yhtiö</option>
-        {availableStock.map(stock =>
-          <option key={stock} value={stock}>{stockSymbol[stock]}</option>)}
-      </select>
-      <div id="buttons">
-          Valitse ajanjakso:
-          <div id="div1" onClick={(event) => handleClick("-7", event)}>7 päivää</div>
-          <div id="div2" onClick={(event) => handleClick("-30", event)}>30 päivää</div>
-          <div id="div3" onClick={(event) => handleClick("0", event)}>Kaikki data</div>
-      </div>
-    </div>
-  )
-}
-
-/* Component to display info about selected stock. */
-const StockInfo = ({ selectedStock, stockData, timeFrame }) => {
-  
-  /* Create variables. */
-  const [company, setCompany] = useState(null)
-  const [closingPrice, setClosingPrice] = useState(null)
-  const [changeInPrice, setChangeInPrice] = useState(null)
-
-  /* Use useEffect to get/calculate values to show. */
-  useEffect(() => {
-    if (stockData != null) {
-      setCompany(stockSymbol[selectedStock])
-  
-      let data = stockData.datatable.data
-      setClosingPrice(data[0][5])
-
-      /* Apply timeFrame. Notice that the numbers need to be inverted(?). */
-      if (timeFrame === "0") {
-        data = data.slice(Math.abs(timeFrame))
-      } else {
-        data = data.slice(0, Math.abs(timeFrame))
-      }
-
-      const firstPrice = data[data.length - 1][5]
-      const lastPrice = data[0][5]
-      setChangeInPrice((lastPrice / firstPrice * 100 - 100).toFixed(2))
-    }
-  }, [stockData, timeFrame])
-
-  return (
-    <div id="stockdata">
-      <p><b>Yhtiö: {company}</b></p>
-      <p>Päätöskurssi: {closingPrice} USD</p>
-      <p>Muutos ajanjaksolla: {changeInPrice} %</p>
-    </div>
-  )
-}
 
 /* The App itself. */
 function App() {
 
   /* Define variables with useState(). */
-  const [selectedStock, setSelectedStock] = useState("MMM")
+  const [selectedStock, setSelectedStock] = useState("MMM") // This is the first stock ticker (3M Company)
   const [stockData, setStockData] = useState(null)
-  const [timeFrame, setTimeFrame] = useState("0")
+  const [timeFrame, setTimeFrame] = useState("-7") // This is used to slice the data
   const svgRef = useRef()
 
   /* Get the data. */
@@ -114,8 +25,8 @@ function App() {
     }
     getData()
 
-    /* Select default timeFrame button. */
-    const defaultDiv = document.getElementById("div3")
+    /* Select default timeFrame button. This is stupid. Same thing is done in StockSelector.*/
+    const defaultDiv = document.getElementById("div1")
     defaultDiv.classList.add("buttonsselected")
   }, [selectedStock])
 
@@ -184,7 +95,6 @@ function App() {
         .tickSize(0)
         .tickFormat(x => `$${x}`)
         
-
       /* Define y-axis grid. */
       const yAxisGrid = d3.axisLeft(yScale)
         .tickSize(-width)
@@ -193,22 +103,40 @@ function App() {
                
       /* Remove previous ticks and plot. */
       svg.selectAll("*")
-      .remove()
+        .remove()
       
       /* Append grid. */
       svg.append("g")
-      .call(yAxisGrid)
-      .attr("stroke-opacity", 0.1)
+        .call(yAxisGrid)
+        .attr("stroke-opacity", 0.1)
+
+      /* Define bisect. */
+      const bisect = d3.bisector((d) => d).left
+      
+      /* Append focusLine. */
+      const focus = svg.append("g")
+        .append("circle")
+        .style("fill", "none")
+        .attr("stroke", "black")
+        .attr("r", 8.5)
+        .style("opacity", 0)
+
+      /* Append text to focus circle. */
+      const focusText = svg.append("g")
+        .append("text")
+        .style("opacity", 0)
+        .attr("text-anchor", "middle")
+        .attr("class", "focustext")
 
       /* Append plot. */
       svg.selectAll(".line")
-      .data([yValues])
-      .join("path")
-      .attr("d", d => generateScaledLine(d))
-      .attr("class", "line")
-      .attr("fill", "none")
-      .attr("stroke", "pink")
-      .attr("stroke-width", "1.5px")
+        .data([yValues])
+        .join("path")
+        .attr("d", d => generateScaledLine(d))
+        .attr("class", "line")
+        .attr("fill", "none")
+        .attr("stroke", "pink")
+        .attr("stroke-width", "1.5px")
       
       /* Append x-axis ticks. */
       svg.append("g")
@@ -219,25 +147,48 @@ function App() {
       svg.append("g")
         .call(yAxis)
 
-      // /* Add function on click. */
-      // svg.on("click", (event) => {
+      /* Append rect on top of everything else to get pointer-events. */
+      svg.append("rect")
+        .style("fill", "none")
+        .style("pointer-events", "all")
+        .attr("width", width)
+        .attr("height", height)
+        .on("mouseover", mouseover)
+        .on("mousemove", (event) => mousemove(event))
+        .on("mouseout", mouseout)
 
-      //   const coords = d3.pointer(event)
+      /* Define mouseover(). */
+      function mouseover() {
+        focus.style("opacity", 1)
+        focusText.style("opacity", 1)
+      }
 
-      //   console.log(coords)
+      /* Define mousemove(). */
+      function mousemove(event) {
 
-      //   svg.selectAll(".infoline")
-      //     .remove()
+        /* Get x- and y-coords for focus. */
+        let xco = xScale.invert(d3.pointer(event)[0])
+        const i = bisect([...xValues.keys()], xco)
+        const yco = yScale(yValues[i])
+        xco = xScale(i)
+      
+        /* Update focus. */
+        focus
+          .attr("cx", xScale(i))
+          .attr("cy", yco)
 
-      //   svg.append("line")
-      //     .attr("class", "infoline")
-      //     .attr("x1", coords[0])
-      //     .attr("y1", 0)
-      //     .attr("x2", coords[0])
-      //     .attr("y2", 200)
-      //     .style("stroke", "black")
-      //     .style("stroke-width", "1px")      
-      // })
+        /* Update focusText. */
+        focusText
+          .html(`Pvm: ${xValues[i].toLocaleDateString("en-GB")} Arvo: ${yValues[i]} USD`)
+          .attr("x", width/2)
+          .attr("y", 190)
+      }
+
+      /* Define mouoseout(). */
+      function mouseout() {
+        focus.style("opacity", 0)
+        focusText.style("opacity", 0)
+      }
     }
   }, [stockData, timeFrame])
   
@@ -248,6 +199,11 @@ function App() {
         <h1>Talousdata</h1>
       </div>
       <hr></hr>
+      <div id="legend">
+        <p>Tässä voit tutustua joidenkin yhtiöiden pörssikurssien
+          kehitykseen. Nasdaqin ilmainen data rajoittuu joihinkin
+          amerikkalaisiin yhtiöihin ja muutamaan kuukauteen vuonna 2017.</p>
+      </div>
       <div>
         <StockSelector
           setSelectedStock={setSelectedStock}
