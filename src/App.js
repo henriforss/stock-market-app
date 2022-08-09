@@ -113,7 +113,7 @@ function App() {
       /* Define bisect. */
       const bisect = d3.bisector((d) => d).left
       
-      /* Append focusLine. */
+      /* Append focus. */
       const focus = svg.append("g")
         .append("circle")
         .style("fill", "none")
