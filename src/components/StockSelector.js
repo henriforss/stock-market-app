@@ -14,7 +14,7 @@ const StockSelector = ({ setSelectedStock, setTimeFrame }) => {
 
   /* Function to select default div. This is also done in App.js = stupid.*/
   const selectDefault = () => {
-    const defaultDiv = document.getElementById("div1")
+    const defaultDiv = document.getElementById("div3")
     defaultDiv.classList.add("buttonsselected")
   }
 
@@ -23,7 +23,7 @@ const StockSelector = ({ setSelectedStock, setTimeFrame }) => {
     setSelectedStock(event.target.value)
     removeSelection()
     selectDefault()
-    setTimeFrame("-7") // Default timeFrame = -7
+    setTimeFrame("0") // Default timeFrame = 0
   }
 
   /* Event handler for button. */

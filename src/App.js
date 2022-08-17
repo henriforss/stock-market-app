@@ -13,7 +13,7 @@ function App() {
   /* Define variables with useState(). */
   const [selectedStock, setSelectedStock] = useState("MMM") // This is the first stock ticker (3M Company)
   const [stockData, setStockData] = useState(null)
-  const [timeFrame, setTimeFrame] = useState("-7") // This is used to slice the data
+  const [timeFrame, setTimeFrame] = useState("0") // This is used to slice the data
   const svgRef = useRef()
 
   /* Get the data. */
@@ -26,7 +26,7 @@ function App() {
     getData()
 
     /* Select default timeFrame button. This is stupid. Same thing is done in StockSelector.*/
-    const defaultDiv = document.getElementById("div1")
+    const defaultDiv = document.getElementById("div3")
     defaultDiv.classList.add("buttonsselected")
   }, [selectedStock])
 
@@ -54,7 +54,7 @@ function App() {
       const yDomainHigh = Math.max(...yValues) + 1
 
       /* Define svg size. */
-      const width = 290
+      const width = 276
       const height = 200
 
       /* Define svg element. */
@@ -62,8 +62,8 @@ function App() {
         .attr("width", width)
         .attr("height", height)
         .style("background", "#edfeff")
-        .style("margin-left", "30")
-        .style("margin-top", "30")
+        .style("margin-left", "37")
+        .style("margin-top", "20")
         .style("margin-bottom", "30")
         .style("overflow", "visible")
 
@@ -198,7 +198,6 @@ function App() {
       <div id="title">
         <h1>Talousdata</h1>
       </div>
-      <hr></hr>
       <div id="legend">
         <p>Tässä voit tutustua joidenkin yhtiöiden pörssikurssien
           kehitykseen. Nasdaqin ilmainen data rajoittuu joihinkin
